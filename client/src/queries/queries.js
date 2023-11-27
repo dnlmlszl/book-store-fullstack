@@ -71,3 +71,17 @@ export const REGISTER_MUTATION = gql`
     }
   }
 `;
+
+export const BOOKS_BY_GENRE = gql`
+  query booksByGenre($genre: String!) {
+    booksByGenre(genre: $genre) {
+      id
+      title
+      published
+      author {
+        name
+      }
+      genres
+    }
+  }
+`;

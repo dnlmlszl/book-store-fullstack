@@ -1,12 +1,19 @@
 import { useQuery } from '@apollo/client';
 import { ALL_AUTHORS } from '../queries/queries';
 import EditAuthor from '../components/EditAuthor';
+import { useUser } from '../context/UserContext';
 
 const Authors = () => {
+  const { setErrorMessage } = useUser();
   const { loading, error, data } = useQuery(ALL_AUTHORS);
 
   if (loading) return <p>Loading...</p>;
-  if (error) return <p>Error loading authors</p>;
+  if (error) {
+    setErrorMessage(error.message);
+    setTimeout(() => {
+      setErrorMessage(null);
+    }, 3000);
+  }
 
   return (
     <section className="shadow-md rounded-sm p-4">

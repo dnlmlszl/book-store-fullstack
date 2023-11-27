@@ -6,6 +6,7 @@ const UserContext = createContext();
 export const UserProvider = ({ children }) => {
   const [currentUser, setCurrentUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState(null);
 
   useEffect(() => {
     try {
@@ -30,7 +31,15 @@ export const UserProvider = ({ children }) => {
 
   return (
     <UserContext.Provider
-      value={{ currentUser, setCurrentUser, loading, setLoading, logout }}
+      value={{
+        currentUser,
+        setCurrentUser,
+        loading,
+        setLoading,
+        logout,
+        errorMessage,
+        setErrorMessage,
+      }}
     >
       {children}
     </UserContext.Provider>

@@ -2,32 +2,41 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useMutation } from '@apollo/client';
 import { REGISTER_MUTATION } from '../queries/queries';
+import { useUser } from '../context/UserContext';
 
 const Register = () => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const { setErrorMessage } = useUser();
 
   const navigate = useNavigate();
 
-  const [createUser, { data, loading, error }] = useMutation(
-    REGISTER_MUTATION,
-    {
-      onCompleted: () => navigate('/login'),
-    }
-  );
+  const [createUser, { loading, error }] = useMutation(REGISTER_MUTATION, {
+    onCompleted: () => navigate('/login'),
+  });
 
   const handleRegister = async (e) => {
     e.preventDefault();
     try {
-      const response = await createUser({ variables: { username, password } });
+      await createUser({ variables: { username, password } });
     } catch (error) {
       console.error(error);
+      setErrorMessage(error);
+    } finally {
+      setTimeout(() => {
+        setErrorMessage(null);
+      }, 3000);
     }
   };
 
   if (loading) return <div>Loading...</div>;
 
-  if (error) return <div>Error: {error.message}</div>;
+  if (error) {
+    setErrorMessage(error.message);
+    setTimeout(() => {
+      setErrorMessage(null);
+    }, 3000);
+  }
 
   return (
     <section className="flex items-center justify-center">

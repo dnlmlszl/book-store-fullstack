@@ -15,14 +15,14 @@ const typeDefs = `
         name: String!
         born: Int
         bookCount: Int!
-        id: String!
+        id: ID!
     }
 
     type Book {
         title: String!
         published: Int!
         author: Author!
-        id: String!
+        id: ID!
         genres: [String!]!
     }
     type Query {
@@ -30,6 +30,7 @@ const typeDefs = `
         authorCount: Int!
         allBooks(author: String, genre: String): [Book!]!
         allAuthors: [Author!]!
+        booksByGenre(genre: String!): [Book!]!
         me: User
     }
 

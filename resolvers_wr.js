@@ -69,6 +69,23 @@ const resolvers = {
         })
       );
     },
+    booksByGenre: async (root, args, context) => {
+      if (!context.currentUser) {
+        throw new GraphQLError('Wrong credentials', {
+          extensions: {
+            code: 'BAD_BOOK_INPUT',
+          },
+        });
+      }
+
+      let bookIds = context.currentUser.books;
+      let query = {
+        _id: { $in: bookIds },
+        genres: { $in: [args.genre] },
+      };
+
+      return Book.find(query).populate('author');
+    },
     me: (root, args, context) => {
       return context.currentUser;
     },

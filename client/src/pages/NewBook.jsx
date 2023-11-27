@@ -1,6 +1,8 @@
 import { useMutation } from '@apollo/client';
 import { useState } from 'react';
 import { ADD_BOOK, ALL_BOOKS, ALL_AUTHORS } from '../queries/queries';
+import { useNavigate } from 'react-router-dom';
+import { useUser } from '../context/UserContext';
 
 const NewBook = () => {
   const [title, setTitle] = useState('');
@@ -8,31 +10,81 @@ const NewBook = () => {
   const [published, setPublished] = useState('');
   const [genre, setGenre] = useState('');
   const [genres, setGenres] = useState([]);
+  const { setErrorMessage } = useUser();
 
-  const [addBook] = useMutation(ADD_BOOK, {
-    refetchQueries: [{ query: ALL_BOOKS }, { query: ALL_AUTHORS }],
+  const navigate = useNavigate();
+
+  const [addBook, { loading, error }] = useMutation(ADD_BOOK, {
+    update: (cache, { data: addBook }) => {
+      const queryBooks = ALL_BOOKS;
+      cache.updateQuery({ query: queryBooks }, (data) => ({
+        allBooks: [addBook, ...data.allBooks],
+      }));
+
+      const queryAuthors = ALL_AUTHORS;
+      cache.updateQuery({ query: queryAuthors }, (data) => {
+        if (
+          !data.allAuthors.some((author) => author.name === addBook.author.name)
+        ) {
+          return {
+            allAuthors: [addBook.author, ...data.allAuthors],
+          };
+        }
+
+        return {
+          allAuthors: data.allAuthors.map((author) => {
+            if (author.name === addBook.author.name) {
+              return {
+                ...author,
+                bookCount: author.bookCount + 1,
+              };
+            }
+
+            return author;
+          }),
+        };
+      });
+    },
+    onCompleted: () => navigate('/books'),
   });
 
   const submit = async (event) => {
     event.preventDefault();
 
-    console.log('add book...');
+    console.log('book added...');
 
-    addBook({
-      variables: { title, published: parseInt(published), author, genres },
-    });
-
-    setTitle('');
-    setPublished('');
-    setAuthor('');
-    setGenres([]);
-    setGenre('');
+    try {
+      await addBook({
+        variables: { title, published: parseInt(published), author, genres },
+      });
+    } catch (error) {
+      console.error('There was an error when adding a book: ', error);
+      setErrorMessage(error);
+    } finally {
+      setTitle('');
+      setPublished('');
+      setAuthor('');
+      setGenres([]);
+      setGenre('');
+      setTimeout(() => {
+        setErrorMessage(null);
+      }, 3000);
+    }
   };
 
   const addGenre = () => {
     setGenres(genres.concat(genre));
     setGenre('');
   };
+
+  if (loading) return <p>Loading...</p>;
+
+  if (error) {
+    setErrorMessage(error.message);
+    setTimeout(() => {
+      setErrorMessage(null);
+    }, 3000);
+  }
 
   return (
     <section className="shadow-md rounded-sm p-4">

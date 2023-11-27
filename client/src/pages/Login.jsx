@@ -8,7 +8,7 @@ import { jwtDecode } from 'jwt-decode';
 const Login = () => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const { setCurrentUser } = useUser();
+  const { setCurrentUser, setErrorMessage } = useUser();
   const navigate = useNavigate();
   const client = useApolloClient();
   const [login, { data, loading, error }] = useMutation(
@@ -39,12 +39,22 @@ const Login = () => {
       await login({ variables: { username, password } });
     } catch (error) {
       console.error(error);
+      setErrorMessage(error);
+    } finally {
+      setTimeout(() => {
+        setErrorMessage(null);
+      }, 3000);
     }
   };
 
   if (loading) return <div>Loading...</div>;
 
-  if (error) return <div>Error: {error.message}</div>;
+  if (error) {
+    setErrorMessage(error.message);
+    setTimeout(() => {
+      setErrorMessage(null);
+    }, 3000);
+  }
 
   return (
     <section className="flex items-center justify-center">

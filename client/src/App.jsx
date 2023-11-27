@@ -8,11 +8,13 @@ import Authors from './pages/Authors';
 import PrivateRoute from './pages/PrivateRoute';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import { Notify } from './components/Notify';
 
 function App() {
   return (
     <Router>
       <Navbar />
+      <Notify />
       <main className="container w-[95%] mx-auto">
         <Routes>
           <Route
