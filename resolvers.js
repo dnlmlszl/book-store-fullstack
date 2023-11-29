@@ -1,13 +1,13 @@
 const { GraphQLError } = require('graphql');
 const { PubSub } = require('graphql-subscriptions');
 
-const Book = require('./models/book');
-const Author = require('./models/author');
-const User = require('./models/user');
-
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
 const pubsub = new PubSub();
+
+const Book = require('./models/book');
+const Author = require('./models/author');
+const User = require('./models/user');
 
 const resolvers = {
   Query: {
@@ -35,18 +35,29 @@ const resolvers = {
       return await Book.find(query).populate('author');
     },
     allAuthors: async () => {
+      // const authors = await Author.find({});
+      // return Promise.all(
+      //   authors.map(async (author) => {
+      //     const books = await Book.find({ author: author._id });
+      //     return {
+      //       ...author._doc,
+      //       bookCount: books.length,
+      //     };
+      //   })
+      // );
+
       const authors = await Author.find({});
+      const books = await Book.find({}).populate('author');
 
-      return Promise.all(
-        authors.map(async (author) => {
-          const books = await Book.find({ author: author._id });
+      const authorBookCounts = books.reduce((counts, book) => {
+        counts[book.author.id] = (counts[book.author.id] || 0) + 1;
+        return counts;
+      }, {});
 
-          return {
-            ...author._doc,
-            bookCount: books.length,
-          };
-        })
-      );
+      return authors.map((author) => ({
+        ...author._doc,
+        bookCount: authorBookCounts[author.id] || 0,
+      }));
     },
     me: (root, args, context) => {
       return context.currentUser;
@@ -80,6 +91,9 @@ const resolvers = {
 
       const newBook = new Book({ ...args, author: author._id });
       await newBook.save();
+
+      pubsub.publish('BOOK_ADDED', { bookAdded: newBook });
+      console.log('Published: ', newBook);
 
       return newBook;
     },
@@ -165,6 +179,14 @@ const resolvers = {
       };
 
       return { value: jwt.sign(userForToken, process.env.SECRET) };
+    },
+  },
+  Subscription: {
+    bookAdded: {
+      subscribe: () => {
+        console.log('Subscription subscribed');
+        return pubsub.asyncIterator('BOOK_ADDED');
+      },
     },
   },
 };

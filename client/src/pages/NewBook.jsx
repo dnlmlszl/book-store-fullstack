@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { ADD_BOOK, ALL_BOOKS, ALL_AUTHORS } from '../queries/queries';
 import { useNavigate } from 'react-router-dom';
 import { useUser } from '../context/UserContext';
+import { updateCache } from '../utils/updateCacheUtil';
 
 const NewBook = () => {
   const [title, setTitle] = useState('');
@@ -15,35 +16,39 @@ const NewBook = () => {
   const navigate = useNavigate();
 
   const [addBook, { loading, error }] = useMutation(ADD_BOOK, {
-    update: (cache, { data: addBook }) => {
-      const queryBooks = ALL_BOOKS;
-      cache.updateQuery({ query: queryBooks }, (data) => ({
-        allBooks: [addBook, ...data.allBooks],
-      }));
+    onError: (error) => {
+      error.graphQLErrors?.length > 0
+        ? setErrorMessage(error.graphQLErrors[0].message)
+        : setErrorMessage('An error occured');
+      setTimeout(() => {
+        setErrorMessage(null);
+      }, 3000);
+    },
+    update: (cache, response) => {
+      const newBook = response.data.addBook;
+      updateCache(cache, { query: ALL_BOOKS }, newBook);
 
-      const queryAuthors = ALL_AUTHORS;
-      cache.updateQuery({ query: queryAuthors }, (data) => {
-        if (
-          !data.allAuthors.some((author) => author.name === addBook.author.name)
-        ) {
-          return {
-            allAuthors: [addBook.author, ...data.allAuthors],
-          };
+      const existingAuthors = cache.readQuery({ query: ALL_AUTHORS });
+      if (existingAuthors) {
+        let authorsUpdated = false;
+        const updatedAuthors = existingAuthors.allAuthors.map((author) => {
+          if (author.name === newBook.author.name) {
+            authorsUpdated = true;
+            return { ...author, bookCount: author.bookCount + 1 };
+          } else {
+            return author;
+          }
+        });
+
+        if (!authorsUpdated) {
+          updatedAuthors.push({ ...newBook.author, bookCount: 1 });
         }
 
-        return {
-          allAuthors: data.allAuthors.map((author) => {
-            if (author.name === addBook.author.name) {
-              return {
-                ...author,
-                bookCount: author.bookCount + 1,
-              };
-            }
-
-            return author;
-          }),
-        };
-      });
+        cache.writeQuery({
+          query: ALL_AUTHORS,
+          data: { allAuthors: updatedAuthors },
+        });
+      }
     },
     onCompleted: () => navigate('/books'),
   });

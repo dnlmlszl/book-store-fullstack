@@ -9,8 +9,18 @@ import PrivateRoute from './pages/PrivateRoute';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import { Notify } from './components/Notify';
+import { useSubscription } from '@apollo/client';
+import { ALL_BOOKS, BOOK_ADDED } from './queries/queries';
+import { updateCache } from './utils/updateCacheUtil';
 
 function App() {
+  useSubscription(BOOK_ADDED, {
+    onData: ({ data, client }) => {
+      const addedBook = data.data.bookAdded;
+      updateCache(client.cache, { query: ALL_BOOKS }, addedBook);
+    },
+  });
+
   return (
     <Router>
       <Navbar />

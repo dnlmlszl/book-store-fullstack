@@ -1,6 +1,13 @@
 require('dotenv').config();
 
 const { ApolloServer } = require('@apollo/server');
+const {
+  ApolloServerPluginDrainHttpServer,
+} = require('@apollo/server/plugin/drainHttpServer');
+const { makeExecutableSchema } = require('@graphql-tools/schema');
+const { WebSocketServer } = require('ws');
+const { useServer } = require('graphql-ws/lib/use/ws');
+
 const { expressMiddleware } = require('@apollo/server/express4');
 
 const connectDB = require('./db/connect');
@@ -10,35 +17,71 @@ const path = require('path');
 const express = require('express');
 const bodyParser = require('body-parser');
 const cors = require('cors');
-
-const jwt = require('jsonwebtoken');
-const mongoose = require('mongoose');
-mongoose.set('strictQuery', false);
-
-const app = express();
+const http = require('http');
 
 const typeDefs = require('./schema');
 const resolvers = require('./resolvers_wr');
-
 const User = require('./models/user');
 
-const server = new ApolloServer({
-  typeDefs,
-  resolvers,
-});
+const jwt = require('jsonwebtoken');
+const cookieParser = require('cookie-parser');
+const helmet = require('helmet');
+const hpp = require('hpp');
+const mongoSanitize = require('express-mongo-sanitize');
+const rateLimit = require('express-rate-limit');
+const xss = require('xss-clean');
 
+const mongoose = require('mongoose');
+mongoose.set('strictQuery', false);
+mongoose.set('debug', true);
+
+const app = express();
 app.use(cors());
+app.use(helmet());
+app.use(bodyParser.json());
+app.use(cookieParser());
+app.use(mongoSanitize());
+app.use(
+  rateLimit({
+    windowMs: 1 * 60 * 1000,
+    max: 100,
+  })
+);
+app.use(hpp());
+app.use(xss());
 
-app.use(express.json());
+const httpServer = http.createServer(app);
+const schema = makeExecutableSchema({ typeDefs, resolvers });
+
+const wsServer = new WebSocketServer({
+  server: httpServer,
+  path: '/',
+});
+const serverCleanup = useServer({ schema }, wsServer);
+
+const server = new ApolloServer({
+  schema,
+  plugins: [
+    ApolloServerPluginDrainHttpServer({ httpServer }),
+    {
+      async serverWillStart() {
+        return {
+          async drainServer() {
+            await serverCleanup.dispose();
+          },
+        };
+      },
+    },
+  ],
+});
 
 (async () => {
   await server.start();
   app.use(
-    '/graphql',
+    '/',
     cors(),
     express.json(),
     expressMiddleware(server, {
-      path: '/graphql',
       context: async ({ req }) => {
         let currentUser = null;
         const auth = req ? req.headers.authorization : null;

@@ -42,7 +42,6 @@ const EditAuthor = () => {
 
     try {
       editAuthor({ variables: { name, setBornTo: parseInt(born) } });
-      console.log(name, born);
     } catch (error) {
       console.error(error);
       setErrorMessage(error);
