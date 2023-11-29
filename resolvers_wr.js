@@ -129,6 +129,7 @@ const resolvers = {
       const newBook = new Book({
         ...args,
         author: author._id,
+        genres: [...new Set(args.genres.map((genre) => genre.toLowerCase()))],
       });
       try {
         await newBook.save();
